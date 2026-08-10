@@ -7,6 +7,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,18 +28,21 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.KeyOff
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,25 +53,47 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bdavidgm.glm_chat.data.ApiConfig
 import com.bdavidgm.glm_chat.data.ChatMessage
 import com.bdavidgm.glm_chat.data.MessageRole
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
+
+private val HELP_JSON_EXAMPLE = """
+{
+  "base_url": "https://api.llm-gateway-9k2x.example.com/v1",
+  "chat_path": "/chat/completions",
+  "api_key": "sk-ex-7f3a9c2e1b84d6a05e91",
+  "model": "chat-model-pro-v2",
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "max_tokens": 2048,
+  "seed": 42,
+  "stream": true
+}
+""".trimIndent()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +106,8 @@ fun ChatScreen(
     val state by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     val pickJson = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -107,6 +135,10 @@ fun ChatScreen(
         viewModel.clearInfo()
     }
 
+    if (showHelpDialog) {
+        HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         // El Scaffold no aplica insets extra al contenido; el compositor
@@ -117,43 +149,62 @@ fun ChatScreen(
                 title = {
                     Column {
                         Text(
-                            text = "GLM Chat",
-                            style = MaterialTheme.typography.titleLarge,
+                            text = "NVIDEA LLM API Chat",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = state.config?.model ?: "Sin configuración de API",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { pickJson.launch(arrayOf("application/json", "text/*", "*/*")) },
-                        enabled = !state.isGenerating && !state.isImporting,
-                    ) {
+                    IconButton(onClick = { menuExpanded = true }) {
                         Icon(
-                            imageVector = Icons.Default.FolderOpen,
-                            contentDescription = "Cargar JSON de la API",
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Más opciones",
                         )
                     }
-                    IconButton(
-                        onClick = viewModel::clearConfig,
-                        enabled = state.config != null && !state.isGenerating && !state.isImporting,
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyOff,
-                            contentDescription = "Quitar configuración",
+                        DropdownMenuItem(
+                            text = { Text("Cargar JSON de la API") },
+                            onClick = {
+                                menuExpanded = false
+                                pickJson.launch(arrayOf("application/json", "text/*", "*/*"))
+                            },
+                            enabled = !state.isGenerating && !state.isImporting,
                         )
-                    }
-                    IconButton(
-                        onClick = viewModel::clearChat,
-                        enabled = state.messages.isNotEmpty() && !state.isGenerating,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Limpiar chat",
+                        DropdownMenuItem(
+                            text = { Text("Quitar configuración") },
+                            onClick = {
+                                menuExpanded = false
+                                viewModel.clearConfig()
+                            },
+                            enabled = state.config != null && !state.isGenerating && !state.isImporting,
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Limpiar chat") },
+                            onClick = {
+                                menuExpanded = false
+                                viewModel.clearChat()
+                            },
+                            enabled = state.messages.isNotEmpty() && !state.isGenerating,
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Ayuda") },
+                            onClick = {
+                                menuExpanded = false
+                                showHelpDialog = true
+                            },
                         )
                     }
                 },
@@ -221,6 +272,46 @@ fun ChatScreen(
 }
 
 @Composable
+private fun HelpDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Formato del archivo JSON") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = "Selecciona un archivo JSON con estos campos:",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = HELP_JSON_EXAMPLE,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                        )
+                        .padding(12.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        },
+    )
+}
+
+@Composable
 private fun ConfigRequiredState(
     isImporting: Boolean,
     onPickFile: () -> Unit,
@@ -239,26 +330,11 @@ private fun ConfigRequiredState(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Esta app no incluye claves ni parámetros de la API en el código.\n\n" +
-                    "Selecciona un archivo JSON de tu teléfono con base_url, chat_path, " +
-                    "api_key, model, temperature, top_p, max_tokens, seed y stream.\n\n" +
-                    "Puedes usar nvidia_api_config.json (en la raíz del proyecto) copiándolo al dispositivo.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
             Spacer(modifier = Modifier.height(24.dp))
             if (isImporting) {
                 CircularProgressIndicator()
             } else {
                 Button(onClick = onPickFile) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
                     Text("Seleccionar archivo JSON")
                 }
             }
@@ -353,16 +429,47 @@ private fun MessageBubble(message: ChatMessage) {
                     color = contentColor.copy(alpha = 0.7f),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                if (message.content.isEmpty() && message.isStreaming) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(
-                        text = message.content,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                when {
+                    // Spinner solo al inicio; mientras stream-ea texto plano evita el parpadeo
+                    // del parser Markdown con markdown incompleto.
+                    message.content.isEmpty() && message.isStreaming -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                    isUser || message.isStreaming -> {
+                        Text(
+                            text = message.content,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    else -> {
+                        Markdown(
+                            content = message.content,
+                            colors = markdownColor(
+                                text = contentColor,
+                                codeBackground = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                            ),
+                            typography = markdownTypography(
+                                h1 = MaterialTheme.typography.titleLarge,
+                                h2 = MaterialTheme.typography.titleMedium,
+                                h3 = MaterialTheme.typography.titleSmall,
+                                h4 = MaterialTheme.typography.titleSmall,
+                                h5 = MaterialTheme.typography.bodyLarge,
+                                h6 = MaterialTheme.typography.bodyMedium,
+                                text = MaterialTheme.typography.bodyLarge,
+                                code = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                ),
+                                quote = MaterialTheme.typography.bodyLarge,
+                                paragraph = MaterialTheme.typography.bodyLarge,
+                                ordered = MaterialTheme.typography.bodyLarge,
+                                bullet = MaterialTheme.typography.bodyLarge,
+                                list = MaterialTheme.typography.bodyLarge,
+                            ),
+                        )
+                    }
                 }
             }
         }
