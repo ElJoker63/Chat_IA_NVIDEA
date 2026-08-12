@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.okhttp)
     implementation(libs.markdown.renderer.m3)
+    implementation(libs.coil.compose)
     
     // Room
     implementation(libs.androidx.room.runtime)

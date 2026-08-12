@@ -119,6 +119,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.bdavidgm.glm_chat.data.ApiConfig
 import com.bdavidgm.glm_chat.data.ChatMessage
 import com.bdavidgm.glm_chat.data.MessageRole
@@ -319,8 +320,9 @@ fun ChatScreen(
                             isGenerating = state.isGenerating,
                             onValueChange = viewModel::onInputChange,
                             onSend = viewModel::sendMessage,
-                            onAttachFile = { pickFile.launch("*/*") },
+                            onAttachFile = { pickFile.launch("image/*") },
                             selectedFileName = state.selectedFileName,
+                            selectedFileUri = state.selectedFileUri,
                             modifier = Modifier.windowInsetsPadding(
                                 WindowInsets.ime.union(WindowInsets.navigationBars),
                             ),
@@ -726,7 +728,19 @@ private fun MessageBubble(
                 ),
                 modifier = Modifier.widthIn(max = 280.dp)
             ) {
-                Box(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    if (message.imageBase64 != null && message.imageType != null) {
+                        AsyncImage(
+                            model = "data:${message.imageType};base64,${message.imageBase64}",
+                            contentDescription = "Imagen adjunta",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .padding(bottom = 8.dp)
+                        )
+                    }
+
                     if (isEditing) {
                         Column {
                             OutlinedTextField(
@@ -807,6 +821,7 @@ private fun ComposerBar(
     onSend: () -> Unit,
     onAttachFile: () -> Unit,
     selectedFileName: String?,
+    selectedFileUri: android.net.Uri?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -815,7 +830,21 @@ private fun ComposerBar(
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        if (selectedFileName != null) {
+        if (selectedFileUri != null) {
+            Box(
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.DarkGray)
+            ) {
+                AsyncImage(
+                    model = selectedFileUri,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        } else if (selectedFileName != null) {
             Row(
                 modifier = Modifier
                     .padding(bottom = 8.dp)

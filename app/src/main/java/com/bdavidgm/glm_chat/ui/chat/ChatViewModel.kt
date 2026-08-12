@@ -239,13 +239,18 @@ class ChatViewModel(
             }
 
             val userMsgId = UUID.randomUUID().toString()
+            val fileBase64 = _uiState.value.selectedFileBase64
+            val fileType = _uiState.value.selectedFileType
+
             chatDao.insertMessage(
                 LocalMessage(
                     id = userMsgId,
                     threadId = threadId,
                     role = MessageRole.USER,
                     content = text,
-                    filePath = _uiState.value.selectedFileUri?.toString()
+                    filePath = _uiState.value.selectedFileUri?.toString(),
+                    imageBase64 = fileBase64,
+                    imageType = fileType
                 )
             )
 
@@ -256,10 +261,6 @@ class ChatViewModel(
                 content = "",
                 isStreaming = true,
             )
-
-            // Guardamos info del archivo antes de limpiar el estado
-            val fileBase64 = _uiState.value.selectedFileBase64
-            val fileType = _uiState.value.selectedFileType
 
             // Limpiar input y archivo, y poner el placeholder en streamingMessage
             _uiState.update { 
@@ -275,15 +276,14 @@ class ChatViewModel(
                 ) 
             }
 
-            // Si hay imagen, notificamos al modelo (la lógica de envío real a la API NVIDIA depende del modelo)
-            val userContentForApi = if (fileBase64 != null && fileType?.startsWith("image/") == true) {
-                "He adjuntado una imagen a este mensaje. [DATA: $fileType]. $text"
-            } else {
-                text
-            }
-
             // Usamos la lista actual de mensajes + el nuevo mensaje de usuario para la API
-            val historyForApi = _uiState.value.messages + ChatMessage(id = userMsgId, role = MessageRole.USER, content = userContentForApi)
+            val historyForApi = _uiState.value.messages + ChatMessage(
+                id = userMsgId, 
+                role = MessageRole.USER, 
+                content = text,
+                imageBase64 = fileBase64,
+                imageType = fileType
+            )
 
             streamJob = viewModelScope.launch {
                 try {
@@ -344,7 +344,13 @@ class ChatViewModel(
         messagesJob = viewModelScope.launch {
             chatDao.getMessagesForThread(threadId).collect { localMessages ->
                 val chatMessages = localMessages.map { 
-                    ChatMessage(id = it.id, role = it.role, content = it.content) 
+                    ChatMessage(
+                        id = it.id, 
+                        role = it.role, 
+                        content = it.content,
+                        imageBase64 = it.imageBase64,
+                        imageType = it.imageType
+                    ) 
                 }
                 _uiState.update { it.copy(messages = chatMessages) }
             }

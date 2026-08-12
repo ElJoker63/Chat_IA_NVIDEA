@@ -11,4 +11,6 @@ data class ChatMessage(
     val role: MessageRole,
     val content: String,
     val isStreaming: Boolean = false,
+    val imageBase64: String? = null,
+    val imageType: String? = null,
 )

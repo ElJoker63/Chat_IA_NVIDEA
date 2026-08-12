@@ -19,5 +19,7 @@ data class LocalMessage(
     val role: MessageRole,
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val filePath: String? = null
+    val filePath: String? = null,
+    val imageBase64: String? = null,
+    val imageType: String? = null
 )

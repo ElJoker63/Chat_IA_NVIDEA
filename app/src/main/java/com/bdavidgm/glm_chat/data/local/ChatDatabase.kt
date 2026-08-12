@@ -41,7 +41,7 @@ interface ChatDao {
     suspend fun updateMessageContent(messageId: String, content: String)
 }
 
-@Database(entities = [ChatThread::class, LocalMessage::class], version = 1, exportSchema = false)
+@Database(entities = [ChatThread::class, LocalMessage::class], version = 2, exportSchema = false)
 abstract class ChatDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
 
@@ -55,7 +55,9 @@ abstract class ChatDatabase : RoomDatabase() {
                     context.applicationContext,
                     ChatDatabase::class.java,
                     "chat_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
