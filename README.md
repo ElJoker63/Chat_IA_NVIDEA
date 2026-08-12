@@ -43,6 +43,3 @@ Una aplicación Android premium, moderna y de alto rendimiento diseñada para in
 2. **Importar**: Abre el proyecto en **Android Studio (Ladybug o superior)**.
 3. **Obtener API Key**: Regístrate y obtén tu clave gratuita en el [portal de NVIDIA Build](https://build.nvidia.com/).
 4. **Configurar**: Al iniciar la app, introduce tu `nvapi-...` y la aplicación se autoconfigurará con los mejores parámetros para la familia Llama 3 / GLM.
-
----
-*Desarrollado con ❤️ para la comunidad de IA y Android.*
