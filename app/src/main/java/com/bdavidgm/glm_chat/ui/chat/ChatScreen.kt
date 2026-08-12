@@ -1,12 +1,11 @@
 package com.bdavidgm.glm_chat.ui.chat
 
 import android.app.Application
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +34,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -44,6 +46,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +55,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -81,20 +85,6 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 
-private val HELP_JSON_EXAMPLE = """
-{
-  "base_url": "https://api.llm-gateway-9k2x.example.com/v1",
-  "chat_path": "/chat/completions",
-  "api_key": "sk-ex-7f3a9c2e1b84d6a05e91",
-  "model": "chat-model-pro-v2",
-  "temperature": 0.7,
-  "top_p": 0.95,
-  "max_tokens": 2048,
-  "seed": 42,
-  "stream": true
-}
-""".trimIndent()
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -108,14 +98,7 @@ fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var menuExpanded by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-
-    val pickJson = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            viewModel.importConfig(uri)
-        }
-    }
+    var showConfigDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content) {
         if (state.messages.isNotEmpty()) {
@@ -137,6 +120,24 @@ fun ChatScreen(
 
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
+    if (showConfigDialog && state.config != null) {
+        ConfigurationDialog(
+            config = state.config!!,
+            availableModels = state.availableModels,
+            isFetchingModels = state.isFetchingModels,
+            onDismiss = { showConfigDialog = false },
+            onSave = {
+                viewModel.updateConfig(it)
+                showConfigDialog = false
+            },
+            onLoadModels = viewModel::loadAvailableModels,
+        )
+    }
+
+    if (state.config == null && !state.isImporting) {
+        ApiKeySetupDialog(onConfirm = viewModel::setupDefaultConfig)
     }
 
     Scaffold(
@@ -176,12 +177,12 @@ fun ChatScreen(
                         onDismissRequest = { menuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Cargar JSON de la API") },
+                            text = { Text("Configuración") },
                             onClick = {
                                 menuExpanded = false
-                                pickJson.launch(arrayOf("application/json", "text/*", "*/*"))
+                                showConfigDialog = true
                             },
-                            enabled = !state.isGenerating && !state.isImporting,
+                            enabled = state.config != null && !state.isGenerating,
                         )
                         DropdownMenuItem(
                             text = { Text("Quitar configuración") },
@@ -191,6 +192,7 @@ fun ChatScreen(
                             },
                             enabled = state.config != null && !state.isGenerating && !state.isImporting,
                         )
+                        HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text("Limpiar chat") },
                             onClick = {
@@ -235,21 +237,15 @@ fun ChatScreen(
         ) {
             when {
                 state.config == null -> {
-                    ConfigRequiredState(
-                        isImporting = state.isImporting,
-                        onPickFile = {
-                            pickJson.launch(arrayOf("application/json", "text/*", "*/*"))
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (state.isImporting) CircularProgressIndicator()
+                    }
                 }
 
                 state.messages.isEmpty() -> {
                     ConfiguredEmptyState(
                         config = state.config!!,
-                        onPickFile = {
-                            pickJson.launch(arrayOf("application/json", "text/*", "*/*"))
-                        },
+                        onOpenConfig = { showConfigDialog = true },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -275,7 +271,7 @@ fun ChatScreen(
 private fun HelpDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Formato del archivo JSON") },
+        title = { Text("Ayuda y Configuración") },
         text = {
             Column(
                 modifier = Modifier
@@ -283,69 +279,262 @@ private fun HelpDialog(onDismiss: () -> Unit) {
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(
-                    text = "Selecciona un archivo JSON con estos campos:",
+                    text = "Esta aplicación se conecta a la API de NVIDIA LLM.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Al iniciar, solo necesitas tu API Key. Los valores por defecto están optimizados para los modelos Llama 3.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = HELP_JSON_EXAMPLE,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp),
-                        )
-                        .padding(12.dp),
+                    text = "Puedes cambiar el modelo y otros parámetros (temperature, tokens, etc.) en el menú de Configuración en la parte superior derecha.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "El selector de modelos permite buscar entre todos los modelos disponibles en la API de NVIDIA.",
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text("Entendido")
             }
         },
     )
 }
 
 @Composable
-private fun ConfigRequiredState(
-    isImporting: Boolean,
-    onPickFile: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun ApiKeySetupDialog(
+    onConfirm: (String) -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Configura la API",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            if (isImporting) {
-                CircularProgressIndicator()
-            } else {
-                Button(onClick = onPickFile) {
-                    Text("Seleccionar archivo JSON")
+    var apiKey by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { /* No se puede descartar */ },
+        title = { Text("Configuración Inicial") },
+        text = {
+            Column {
+                Text(
+                    "Introduce tu API Key de NVIDIA para comenzar. La app se configurará automáticamente con valores por defecto.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = { Text("NVIDIA API Key") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(apiKey) },
+                enabled = apiKey.isNotBlank(),
+            ) {
+                Text("Empezar")
+            }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConfigurationDialog(
+    config: ApiConfig,
+    availableModels: List<String>,
+    isFetchingModels: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (ApiConfig) -> Unit,
+    onLoadModels: () -> Unit,
+) {
+    var baseUrl by remember { mutableStateOf(config.baseUrl) }
+    var chatPath by remember { mutableStateOf(config.chatPath) }
+    var apiKey by remember { mutableStateOf(config.apiKey) }
+    var model by remember { mutableStateOf(config.model) }
+    var temperature by remember { mutableStateOf(config.temperature.toString()) }
+    var topP by remember { mutableStateOf(config.topP.toString()) }
+    var maxTokens by remember { mutableStateOf(config.maxTokens.toString()) }
+    var seed by remember { mutableStateOf(config.seed.toString()) }
+    var stream by remember { mutableStateOf(config.stream) }
+
+    var modelMenuExpanded by remember { mutableStateOf(false) }
+    var modelFilter by remember { mutableStateOf("") }
+    val filteredModels = remember(availableModels, modelFilter) {
+        availableModels.filter { it.contains(modelFilter, ignoreCase = true) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Configuración de la API") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = { Text("API Key") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = model,
+                        onValueChange = { },
+                        label = { Text("Modelo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        readOnly = true,
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                modelMenuExpanded = true
+                                onLoadModels()
+                            }) {
+                                if (isFetchingModels) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                } else {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                }
+                            }
+                        },
+                    )
+                    // Capa invisible para capturar el click en todo el campo
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable {
+                                modelMenuExpanded = true
+                                onLoadModels()
+                            },
+                    )
+                    DropdownMenu(
+                        expanded = modelMenuExpanded,
+                        onDismissRequest = { modelMenuExpanded = false },
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .height(400.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = modelFilter,
+                            onValueChange = { modelFilter = it },
+                            placeholder = { Text("Buscar modelo...") },
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .fillMaxWidth(),
+                            singleLine = true,
+                        )
+                        if (filteredModels.isEmpty() && !isFetchingModels) {
+                            DropdownMenuItem(
+                                text = { Text("No se encontraron modelos") },
+                                onClick = {},
+                                enabled = false,
+                            )
+                        }
+                        filteredModels.take(50).forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m) },
+                                onClick = {
+                                    model = m
+                                    modelMenuExpanded = false
+                                },
+                            )
+                        }
+                        if (filteredModels.size > 50) {
+                            DropdownMenuItem(
+                                text = { Text("... y ${filteredModels.size - 50} más") },
+                                onClick = {},
+                                enabled = false,
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = baseUrl,
+                    onValueChange = { baseUrl = it },
+                    label = { Text("Base URL") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                OutlinedTextField(
+                    value = temperature,
+                    onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) temperature = it },
+                    label = { Text("Temperature") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                OutlinedTextField(
+                    value = topP,
+                    onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) topP = it },
+                    label = { Text("Top P") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                OutlinedTextField(
+                    value = maxTokens,
+                    onValueChange = { if (it.isEmpty() || it.toIntOrNull() != null) maxTokens = it },
+                    label = { Text("Max Tokens") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                OutlinedTextField(
+                    value = seed,
+                    onValueChange = { if (it.isEmpty() || it.toIntOrNull() != null) seed = it },
+                    label = { Text("Seed") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Habilitar Streaming")
+                    Switch(checked = stream, onCheckedChange = { stream = it })
                 }
             }
-        }
-    }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        config.copy(
+                            baseUrl = baseUrl,
+                            chatPath = chatPath,
+                            apiKey = apiKey,
+                            model = model,
+                            temperature = temperature.toDoubleOrNull() ?: config.temperature,
+                            topP = topP.toDoubleOrNull() ?: config.topP,
+                            maxTokens = maxTokens.toIntOrNull() ?: config.maxTokens,
+                            seed = seed.toIntOrNull() ?: config.seed,
+                            stream = stream,
+                        ),
+                    )
+                },
+            ) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        },
+    )
 }
 
 @Composable
 private fun ConfiguredEmptyState(
     config: ApiConfig,
-    onPickFile: () -> Unit,
+    onOpenConfig: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -383,8 +572,8 @@ private fun ConfiguredEmptyState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(onClick = onPickFile) {
-                Text("Cambiar JSON de configuración")
+            OutlinedButton(onClick = onOpenConfig) {
+                Text("Abrir Configuración")
             }
         }
     }

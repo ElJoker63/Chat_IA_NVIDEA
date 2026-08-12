@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -72,6 +73,31 @@ class NvidiaChatClient(
             call.cancel()
         }
     }.flowOn(Dispatchers.IO)
+
+    suspend fun fetchModels(config: ApiConfig): List<String> = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${config.baseUrl.trimEnd('/')}/models")
+            .addHeader("Authorization", "Bearer ${config.apiKey}")
+            .get()
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList<String>()
+                val body = response.body?.string() ?: return@use emptyList<String>()
+                val json = JSONObject(body)
+                val data = json.optJSONArray("data") ?: return@use emptyList<String>()
+                val models = mutableListOf<String>()
+                for (i in 0 until data.length()) {
+                    val modelObj = data.getJSONObject(i)
+                    models.add(modelObj.getString("id"))
+                }
+                models.sorted()
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
 
     private fun buildRequestBody(config: ApiConfig, messages: List<ChatMessage>): String {
         val messagesArray = JSONArray()

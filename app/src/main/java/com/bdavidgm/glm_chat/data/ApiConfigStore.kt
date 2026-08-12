@@ -36,6 +36,12 @@ class ApiConfigStore(context: Context) {
         return config
     }
 
+    fun save(config: ApiConfig) {
+        prefs.edit()
+            .putString(KEY_JSON, ApiConfigParser.toJson(config))
+            .apply()
+    }
+
     fun clear() {
         prefs.edit().remove(KEY_JSON).apply()
     }

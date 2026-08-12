@@ -29,6 +29,8 @@ data class ChatUiState(
     val isImporting: Boolean = false,
     val error: String? = null,
     val info: String? = null,
+    val availableModels: List<String> = emptyList(),
+    val isFetchingModels: Boolean = false,
 )
 
 class ChatViewModel(
@@ -97,7 +99,38 @@ class ChatViewModel(
     fun clearConfig() {
         streamJob?.cancel()
         configStore.clear()
-        _uiState.value = ChatUiState(info = "Configuración eliminada. Selecciona un JSON de nuevo.")
+        _uiState.value = ChatUiState(info = "Configuración eliminada.")
+    }
+
+    fun setupDefaultConfig(apiKey: String) {
+        val config = DEFAULT_API_CONFIG.copy(apiKey = apiKey.trim())
+        configStore.save(config)
+        _uiState.update { it.copy(config = config, info = "API Key configurada correctamente") }
+    }
+
+    fun updateConfig(config: ApiConfig) {
+        configStore.save(config)
+        _uiState.update { it.copy(config = config, info = "Configuración actualizada") }
+    }
+
+    fun loadAvailableModels() {
+        val config = _uiState.value.config ?: return
+        if (_uiState.value.isFetchingModels) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isFetchingModels = true) }
+            try {
+                val models = chatClient.fetchModels(config)
+                _uiState.update { it.copy(availableModels = models, isFetchingModels = false) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isFetchingModels = false,
+                        error = "No se pudieron cargar los modelos: ${e.message}",
+                    )
+                }
+            }
+        }
     }
 
     fun sendMessage() {
@@ -185,6 +218,18 @@ class ChatViewModel(
     }
 
     companion object {
+        val DEFAULT_API_CONFIG = ApiConfig(
+            baseUrl = "https://integrate.api.nvidia.com/v1",
+            chatPath = "/chat/completions",
+            apiKey = "",
+            model = "z-ai/glm-5.2",
+            temperature = 0.6,
+            topP = 0.7,
+            maxTokens = 1024,
+            seed = 42,
+            stream = true,
+        )
+
         fun factory(application: Application): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
