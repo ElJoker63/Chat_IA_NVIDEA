@@ -1,7 +1,10 @@
 package com.bdavidgm.glm_chat.ui.chat
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -11,6 +14,9 @@ import com.bdavidgm.glm_chat.data.ApiConfigStore
 import com.bdavidgm.glm_chat.data.ChatMessage
 import com.bdavidgm.glm_chat.data.MessageRole
 import com.bdavidgm.glm_chat.data.NvidiaChatClient
+import com.bdavidgm.glm_chat.data.local.ChatDatabase
+import com.bdavidgm.glm_chat.data.local.ChatThread
+import com.bdavidgm.glm_chat.data.local.LocalMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,11 +25,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 data class ChatUiState(
     val config: ApiConfig? = null,
+    val currentThreadId: String? = null,
+    val threads: List<ChatThread> = emptyList(),
     val messages: List<ChatMessage> = emptyList(),
+    val streamingMessage: ChatMessage? = null,
     val input: String = "",
     val isGenerating: Boolean = false,
     val isImporting: Boolean = false,
@@ -31,6 +41,11 @@ data class ChatUiState(
     val info: String? = null,
     val availableModels: List<String> = emptyList(),
     val isFetchingModels: Boolean = false,
+    val selectedFileUri: Uri? = null,
+    val selectedFileName: String? = null,
+    val selectedFileBase64: String? = null,
+    val selectedFileType: String? = null,
+    val chatSearchQuery: String = "",
 )
 
 class ChatViewModel(
@@ -39,13 +54,106 @@ class ChatViewModel(
     private val chatClient: NvidiaChatClient = NvidiaChatClient(),
 ) : AndroidViewModel(application) {
 
+    private val db = ChatDatabase.getDatabase(application)
+    private val chatDao = db.chatDao()
+
     private val _uiState = MutableStateFlow(ChatUiState(config = configStore.load()))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var streamJob: Job? = null
+    private var messagesJob: Job? = null
+
+    init {
+        loadThreads()
+    }
+
+    private fun loadThreads() {
+        viewModelScope.launch {
+            chatDao.getAllThreads().collect { threads ->
+                _uiState.update { it.copy(threads = threads) }
+            }
+        }
+    }
+
+    fun selectThread(threadId: String?) {
+        messagesJob?.cancel()
+        _uiState.update { it.copy(currentThreadId = threadId, messages = emptyList(), streamingMessage = null) }
+        threadId?.let { observeMessages(it) }
+    }
+
+    fun createNewChat() {
+        selectThread(null)
+    }
+
+    fun onChatSearchQueryChange(query: String) {
+        _uiState.update { it.copy(chatSearchQuery = query) }
+    }
+
+    fun deleteThread(threadId: String) {
+        viewModelScope.launch {
+            chatDao.deleteMessagesForThread(threadId)
+            chatDao.deleteThread(threadId)
+            if (_uiState.value.currentThreadId == threadId) {
+                createNewChat()
+            }
+        }
+    }
+
+    fun onFileSelected(uri: Uri?, name: String?) {
+        if (uri == null) {
+            _uiState.update { it.copy(selectedFileUri = null, selectedFileName = null, selectedFileBase64 = null, selectedFileType = null) }
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val contentResolver = getApplication<Application>().contentResolver
+                val type = contentResolver.getType(uri)
+                
+                if (type?.startsWith("image/") == true) {
+                    val inputStream = contentResolver.openInputStream(uri)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    val outputStream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                    val bytes = outputStream.toByteArray()
+                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    
+                    _uiState.update { 
+                        it.copy(
+                            selectedFileUri = uri, 
+                            selectedFileName = name,
+                            selectedFileBase64 = base64,
+                            selectedFileType = type
+                        ) 
+                    }
+                } else {
+                    // Por ahora solo imágenes, pero preparado para texto plano
+                    _uiState.update { it.copy(selectedFileUri = uri, selectedFileName = name, selectedFileType = type) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "No se pudo procesar el archivo: ${e.message}") }
+            }
+        }
+    }
 
     fun onInputChange(value: String) {
         _uiState.update { it.copy(input = value, error = null) }
+    }
+
+    fun editMessage(messageId: String, newContent: String) {
+        viewModelScope.launch {
+            // Actualizar en DB
+            chatDao.updateMessageContent(messageId, newContent)
+            // Si el mensaje editado era del usuario, regenerar respuesta si es el último
+            val state = _uiState.value
+            val messages = state.messages
+            val index = messages.indexOfFirst { it.id == messageId }
+            if (index != -1 && messages[index].role == MessageRole.USER) {
+                // Si es el último mensaje del usuario, o queremos re-procesar
+                _uiState.update { it.copy(input = newContent) }
+                sendMessage() // Esto creará un nuevo ciclo de envío
+            }
+        }
     }
 
     fun clearError() {
@@ -63,36 +171,8 @@ class ChatViewModel(
                 messages = emptyList(),
                 input = "",
                 isGenerating = false,
+                streamingMessage = null
             )
-        }
-    }
-
-    fun importConfig(uri: Uri) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isImporting = true, error = null, info = null) }
-            try {
-                val config = withContext(Dispatchers.IO) {
-                    configStore.importFromUri(uri)
-                }
-                streamJob?.cancel()
-                _uiState.update {
-                    it.copy(
-                        config = config,
-                        messages = emptyList(),
-                        input = "",
-                        isGenerating = false,
-                        isImporting = false,
-                        info = "Configuración cargada: ${config.model}",
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isImporting = false,
-                        error = e.message ?: "No se pudo importar el JSON",
-                    )
-                }
-            }
         }
     }
 
@@ -139,81 +219,135 @@ class ChatViewModel(
         if (text.isEmpty() || _uiState.value.isGenerating) return
         if (config == null) {
             _uiState.update {
-                it.copy(error = "Primero selecciona el archivo JSON de configuración de la API")
+                it.copy(error = "Primero configura la API")
             }
             return
         }
 
-        val userMessage = ChatMessage(
-            id = UUID.randomUUID().toString(),
-            role = MessageRole.USER,
-            content = text,
-        )
-        val assistantId = UUID.randomUUID().toString()
-        val assistantPlaceholder = ChatMessage(
-            id = assistantId,
-            role = MessageRole.ASSISTANT,
-            content = "",
-            isStreaming = true,
-        )
+        viewModelScope.launch {
+            var threadId = _uiState.value.currentThreadId
+            if (threadId == null) {
+                threadId = UUID.randomUUID().toString()
+                val newThread = ChatThread(
+                    id = threadId,
+                    title = text.take(30) + if (text.length > 30) "..." else "",
+                )
+                chatDao.insertThread(newThread)
+                _uiState.update { it.copy(currentThreadId = threadId) }
+                // Reiniciar observación de mensajes para el nuevo thread
+                observeMessages(threadId)
+            }
 
-        val historyForApi = _uiState.value.messages + userMessage
-
-        _uiState.update {
-            it.copy(
-                messages = it.messages + userMessage + assistantPlaceholder,
-                input = "",
-                isGenerating = true,
-                error = null,
+            val userMsgId = UUID.randomUUID().toString()
+            chatDao.insertMessage(
+                LocalMessage(
+                    id = userMsgId,
+                    threadId = threadId,
+                    role = MessageRole.USER,
+                    content = text,
+                    filePath = _uiState.value.selectedFileUri?.toString()
+                )
             )
-        }
 
-        streamJob = viewModelScope.launch {
-            try {
-                chatClient.streamChat(config, historyForApi).collect { token ->
+            val assistantId = UUID.randomUUID().toString()
+            val assistantPlaceholder = ChatMessage(
+                id = assistantId,
+                role = MessageRole.ASSISTANT,
+                content = "",
+                isStreaming = true,
+            )
+
+            // Guardamos info del archivo antes de limpiar el estado
+            val fileBase64 = _uiState.value.selectedFileBase64
+            val fileType = _uiState.value.selectedFileType
+
+            // Limpiar input y archivo, y poner el placeholder en streamingMessage
+            _uiState.update { 
+                it.copy(
+                    input = "", 
+                    selectedFileUri = null, 
+                    selectedFileName = null,
+                    selectedFileBase64 = null,
+                    selectedFileType = null,
+                    isGenerating = true,
+                    streamingMessage = assistantPlaceholder,
+                    error = null 
+                ) 
+            }
+
+            // Si hay imagen, notificamos al modelo (la lógica de envío real a la API NVIDIA depende del modelo)
+            val userContentForApi = if (fileBase64 != null && fileType?.startsWith("image/") == true) {
+                "He adjuntado una imagen a este mensaje. [DATA: $fileType]. $text"
+            } else {
+                text
+            }
+
+            // Usamos la lista actual de mensajes + el nuevo mensaje de usuario para la API
+            val historyForApi = _uiState.value.messages + ChatMessage(id = userMsgId, role = MessageRole.USER, content = userContentForApi)
+
+            streamJob = viewModelScope.launch {
+                try {
+                    var fullContent = ""
+                    chatClient.streamChat(config, historyForApi).collect { token ->
+                        fullContent += token
+                        _uiState.update { state ->
+                            state.copy(
+                                streamingMessage = state.streamingMessage?.copy(content = fullContent)
+                            )
+                        }
+                    }
+                    
+                    // Guardar respuesta final en DB
+                    chatDao.insertMessage(
+                        LocalMessage(
+                            id = assistantId,
+                            threadId = threadId,
+                            role = MessageRole.ASSISTANT,
+                            content = fullContent
+                        )
+                    )
+                    // Actualizar timestamp del thread
+                    _uiState.value.threads.find { it.id == threadId }?.let {
+                        chatDao.updateThread(it.copy(lastMessageAt = System.currentTimeMillis()))
+                    }
+
+                    // Actualizar estado de forma atómica para evitar saltos/parpadeos en la UI
+                    val finalAssistantMsg = ChatMessage(
+                        id = assistantId,
+                        role = MessageRole.ASSISTANT,
+                        content = fullContent,
+                        isStreaming = false
+                    )
                     _uiState.update { state ->
                         state.copy(
-                            messages = state.messages.map { message ->
-                                if (message.id == assistantId) {
-                                    message.copy(content = message.content + token)
-                                } else {
-                                    message
-                                }
-                            },
+                            isGenerating = false,
+                            streamingMessage = null,
+                            messages = (state.messages + finalAssistantMsg).distinctBy { it.id }
                         )
                     }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    _uiState.update { 
+                        it.copy(
+                            isGenerating = false, 
+                            streamingMessage = null,
+                            error = e.message ?: "No se pudo completar la respuesta"
+                        ) 
+                    }
                 }
-                finishAssistant(assistantId, error = null)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                finishAssistant(
-                    assistantId,
-                    error = e.message ?: "No se pudo completar la respuesta",
-                )
             }
         }
     }
 
-    private fun finishAssistant(assistantId: String, error: String?) {
-        _uiState.update { state ->
-            val updated = state.messages.map { message ->
-                if (message.id == assistantId) {
-                    message.copy(
-                        isStreaming = false,
-                        content = message.content.ifBlank {
-                            if (error != null) "" else "(sin respuesta)"
-                        },
-                    )
-                } else {
-                    message
+    private fun observeMessages(threadId: String) {
+        messagesJob?.cancel()
+        messagesJob = viewModelScope.launch {
+            chatDao.getMessagesForThread(threadId).collect { localMessages ->
+                val chatMessages = localMessages.map { 
+                    ChatMessage(id = it.id, role = it.role, content = it.content) 
                 }
-            }.filterNot { it.id == assistantId && it.content.isBlank() && error != null }
-
-            state.copy(
-                messages = updated,
-                isGenerating = false,
-                error = error,
-            )
+                _uiState.update { it.copy(messages = chatMessages) }
+            }
         }
     }
 

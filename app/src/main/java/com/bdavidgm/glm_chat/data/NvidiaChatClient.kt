@@ -102,11 +102,22 @@ class NvidiaChatClient(
     private fun buildRequestBody(config: ApiConfig, messages: List<ChatMessage>): String {
         val messagesArray = JSONArray()
         messages.forEach { message ->
-            messagesArray.put(
-                JSONObject()
-                    .put("role", message.role.apiValue)
-                    .put("content", message.content),
-            )
+            val messageJson = JSONObject().put("role", message.role.apiValue)
+            
+            // Si hay contenido o es un mensaje con archivos, estructuramos como array de contenidos
+            // (Esto es compatible con modelos multimodales)
+            if (message.role == MessageRole.USER) {
+                val contentArray = JSONArray()
+                contentArray.put(JSONObject().put("type", "text").put("text", message.content))
+                
+                // Aquí podrías añadir lógica para imágenes en Base64 si el modelo lo soporta
+                // Por ahora enviamos el texto plano como contenido principal
+                messageJson.put("content", message.content)
+            } else {
+                messageJson.put("content", message.content)
+            }
+            
+            messagesArray.put(messageJson)
         }
         return JSONObject()
             .put("model", config.model)

@@ -12,3 +12,4 @@ local.properties
 # Credenciales y parámetros de la API (no subir a GitHub)
 nvidia_api_config.json
 pythonConnect
+/.kotlin
