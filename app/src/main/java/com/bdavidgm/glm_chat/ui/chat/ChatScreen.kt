@@ -863,6 +863,8 @@ private fun ComposerBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            val canSend = (value.isNotBlank() || selectedFileUri != null) && !isGenerating
+            
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -878,7 +880,7 @@ private fun ComposerBar(
                 shape = RoundedCornerShape(24.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
-                    onSend = { if (value.isNotBlank() && !isGenerating) onSend() },
+                    onSend = { if (canSend) onSend() },
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.DarkGray,
@@ -889,7 +891,6 @@ private fun ComposerBar(
                 ),
             )
 
-            val canSend = value.isNotBlank() && !isGenerating
             IconButton(
                 onClick = onSend,
                 enabled = canSend,

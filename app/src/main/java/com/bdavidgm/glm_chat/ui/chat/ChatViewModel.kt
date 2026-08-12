@@ -112,7 +112,28 @@ class ChatViewModel(
                 
                 if (type?.startsWith("image/") == true) {
                     val inputStream = contentResolver.openInputStream(uri)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    val originalBitmap = BitmapFactory.decodeStream(inputStream)
+                    
+                    // Reescalar si es muy grande (máximo 1024px en el lado más largo)
+                    val maxDimension = 1024
+                    val width = originalBitmap.width
+                    val height = originalBitmap.height
+                    val (newWidth, newHeight) = if (width > height) {
+                        if (width > maxDimension) {
+                            maxDimension to (height * maxDimension / width)
+                        } else width to height
+                    } else {
+                        if (height > maxDimension) {
+                            (width * maxDimension / height) to maxDimension
+                        } else width to height
+                    }
+                    
+                    val bitmap = if (newWidth != width || newHeight != height) {
+                        Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+                    } else {
+                        originalBitmap
+                    }
+
                     val outputStream = ByteArrayOutputStream()
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
                     val bytes = outputStream.toByteArray()
@@ -123,7 +144,7 @@ class ChatViewModel(
                             selectedFileUri = uri, 
                             selectedFileName = name,
                             selectedFileBase64 = base64,
-                            selectedFileType = type
+                            selectedFileType = "image/jpeg" // Normalizamos a jpeg tras comprimir
                         ) 
                     }
                 } else {

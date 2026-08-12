@@ -106,11 +106,14 @@ class NvidiaChatClient(
             
             if (message.imageBase64 != null && message.imageType != null) {
                 val contentArray = JSONArray()
-                // Texto
+                
+                // Texto (obligatorio en muchos modelos multimodales)
+                val textContent = if (message.content.isBlank()) "Describe esta imagen" else message.content
                 contentArray.put(JSONObject().apply {
                     put("type", "text")
-                    put("text", message.content)
+                    put("text", textContent)
                 })
+                
                 // Imagen
                 contentArray.put(JSONObject().apply {
                     put("type", "image_url")
