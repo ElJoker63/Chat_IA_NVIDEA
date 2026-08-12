@@ -3,6 +3,7 @@ package com.bdavidgm.glm_chat.ui.chat.components
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,7 +36,7 @@ fun ComposerBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Transparent) // Fondo transparente para efecto flotante
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         if (selectedFileUri != null) {
@@ -43,9 +44,8 @@ fun ComposerBar(
                 modifier = Modifier
                     .padding(bottom = 8.dp)
                     .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.DarkGray),
-                contentAlignment = Alignment.Center
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1E1E1E))
             ) {
                 // Para la vista previa antes de enviar, usamos la URI local que es inmediata
                 AsyncImage(
@@ -59,7 +59,7 @@ fun ComposerBar(
             Row(
                 modifier = Modifier
                     .padding(bottom = 8.dp)
-                    .background(Color.DarkGray, RoundedCornerShape(8.dp))
+                    .background(Color(0xFF1E1E1E), RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -88,16 +88,16 @@ fun ComposerBar(
                 },
                 enabled = !isGenerating,
                 maxLines = 5,
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(28.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = { if (canSend) onSend() },
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.DarkGray,
-                    unfocusedBorderColor = Color.DarkGray,
-                    focusedContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f),
+                    focusedBorderColor = Color.DarkGray.copy(alpha = 0.5f),
+                    unfocusedBorderColor = Color.DarkGray.copy(alpha = 0.3f),
+                    focusedContainerColor = Color(0xFF1E1E1E), // Color sólido para que parezca flotar
+                    unfocusedContainerColor = Color(0xFF1E1E1E),
                     cursorColor = MaterialTheme.colorScheme.primary,
                 ),
             )
@@ -106,11 +106,11 @@ fun ComposerBar(
                 onClick = onSend,
                 enabled = canSend,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
+                    .size(48.dp)
+                    .clip(CircleShape)
                     .background(
-                        if (canSend) MaterialTheme.colorScheme.primary else Color.DarkGray,
-                    )
-                    .size(40.dp),
+                        if (canSend) MaterialTheme.colorScheme.primary else Color(0xFF1E1E1E),
+                    ),
             ) {
                 if (isGenerating) {
                     CircularProgressIndicator(

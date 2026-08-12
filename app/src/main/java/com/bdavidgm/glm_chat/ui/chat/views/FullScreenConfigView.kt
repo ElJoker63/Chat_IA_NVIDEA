@@ -39,6 +39,7 @@ fun FullScreenConfigView(
     var maxTokens by remember { mutableStateOf(config.maxTokens.toString()) }
     var seed by remember { mutableStateOf(config.seed.toString()) }
     var stream by remember { mutableStateOf(config.stream) }
+    var showParticles by remember { mutableStateOf(config.showParticles) }
 
     var modelMenuExpanded by remember { mutableStateOf(false) }
     var modelFilter by remember { mutableStateOf("") }
@@ -160,6 +161,18 @@ fun FullScreenConfigView(
                 Switch(checked = stream, onCheckedChange = { stream = it })
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Fondo de Partículas", color = Color.White)
+                    Text("Efecto red neuronal (Experimental)", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                }
+                Switch(checked = showParticles, onCheckedChange = { showParticles = it })
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(
@@ -179,6 +192,7 @@ fun FullScreenConfigView(
                                 maxTokens = maxTokens.toIntOrNull() ?: config.maxTokens,
                                 seed = seed.toIntOrNull() ?: config.seed,
                                 stream = stream,
+                                showParticles = showParticles,
                             )
                         )
                     },

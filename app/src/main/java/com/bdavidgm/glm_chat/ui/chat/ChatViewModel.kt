@@ -420,6 +420,7 @@ class ChatViewModel(
             maxTokens = 1024,
             seed = 42,
             stream = true,
+            showParticles = false,
         )
 
         fun factory(application: Application): ViewModelProvider.Factory =

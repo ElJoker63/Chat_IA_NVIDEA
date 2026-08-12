@@ -1,5 +1,6 @@
 package com.bdavidgm.glm_chat.ui.chat
 
+import android.app.Activity
 import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -67,8 +68,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bdavidgm.glm_chat.ui.chat.components.ComposerBar
 import com.bdavidgm.glm_chat.ui.chat.components.MessageBubble
+import com.bdavidgm.glm_chat.ui.chat.components.NvidiaParticlesBackground
 import com.bdavidgm.glm_chat.ui.chat.components.SidebarContent
 import com.bdavidgm.glm_chat.ui.chat.dialogs.ApiKeySetupDialog
+import com.bdavidgm.glm_chat.ui.chat.dialogs.ExitConfirmationDialog
 import com.bdavidgm.glm_chat.ui.chat.dialogs.HelpDialog
 import com.bdavidgm.glm_chat.ui.chat.views.FullScreenConfigView
 import kotlinx.coroutines.launch
@@ -116,13 +119,18 @@ fun ChatScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     var showConfigDialog by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     // Manejo del botón atrás
-    BackHandler(enabled = drawerState.isOpen || showConfigDialog || showHelpDialog) {
+    BackHandler(enabled = drawerState.isOpen || showConfigDialog || showHelpDialog || showExitDialog || true) {
         when {
             showConfigDialog -> showConfigDialog = false
             showHelpDialog -> showHelpDialog = false
             drawerState.isOpen -> scope.launch { drawerState.close() }
+            showExitDialog -> showExitDialog = false
+            else -> showExitDialog = true
         }
     }
 
@@ -136,6 +144,13 @@ fun ChatScreen(
 
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
+    if (showExitDialog) {
+        ExitConfirmationDialog(
+            onConfirm = { (context as? Activity)?.finish() },
+            onDismiss = { showExitDialog = false }
+        )
     }
 
     if (showConfigDialog && state.config != null) {
@@ -257,6 +272,7 @@ fun ChatScreen(
                     }
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },
+                containerColor = if (state.config?.showParticles == true) Color.Transparent else MaterialTheme.colorScheme.background,
             ) { padding ->
                 LaunchedEffect(state.messages.size, state.streamingMessage?.content, padding.calculateBottomPadding()) {
                     if (isAtBottom) {
@@ -264,79 +280,87 @@ fun ChatScreen(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                ) {
-                    when {
-                        state.config == null -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                if (state.isImporting) CircularProgressIndicator()
+                val mainContent = @Composable {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                    ) {
+                        when {
+                            state.config == null -> {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    if (state.isImporting) CircularProgressIndicator()
+                                }
                             }
-                        }
 
-                        state.messages.isEmpty() && state.currentThreadId == null -> {
-                            Box(modifier = Modifier.fillMaxSize())
-                        }
+                            state.messages.isEmpty() && state.currentThreadId == null -> {
+                                Box(modifier = Modifier.fillMaxSize())
+                            }
 
-                        else -> {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                val allMessages = remember(state.messages, state.streamingMessage) {
-                                    (state.messages + listOfNotNull(state.streamingMessage)).distinctBy { it.id }
-                                }
-
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = 16.dp),
-                                ) {
-                                    items(allMessages, key = { it.id }) { message ->
-                                        MessageBubble(
-                                            message = message,
-                                            modelName = state.config?.model ?: "AI",
-                                            onEdit = { viewModel.editMessage(message.id, it) }
-                                        )
+                            else -> {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    val allMessages = remember(state.messages, state.streamingMessage) {
+                                        (state.messages + listOfNotNull(state.streamingMessage)).distinctBy { it.id }
                                     }
-                                    // Elemento de anclaje para asegurar scroll al final absoluto
-                                    item(key = "bottom_anchor") {
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                    }
-                                }
 
-                                // Botón de flecha hacia abajo
-                                AnimatedVisibility(
-                                    visible = !isAtBottom,
-                                    enter = fadeIn() + expandVertically(),
-                                    exit = fadeOut() + shrinkVertically(),
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .padding(bottom = 32.dp)
-                                ) {
-                                    FloatingActionButton(
-                                        onClick = {
-                                            scope.launch {
-                                                if (listState.layoutInfo.totalItemsCount > 0) {
-                                                    listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(bottom = 16.dp),
+                                    ) {
+                                        items(allMessages, key = { it.id }) { message ->
+                                            MessageBubble(
+                                                message = message,
+                                                modelName = state.config?.model ?: "AI",
+                                                onEdit = { viewModel.editMessage(message.id, it) }
+                                            )
+                                        }
+                                        // Elemento de anclaje para asegurar scroll al final absoluto
+                                        item(key = "bottom_anchor") {
+                                            Spacer(modifier = Modifier.height(1.dp))
+                                        }
+                                    }
+
+                                    // Botón de flecha hacia abajo
+                                    AnimatedVisibility(
+                                        visible = !isAtBottom,
+                                        enter = fadeIn() + expandVertically(),
+                                        exit = fadeOut() + shrinkVertically(),
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 8.dp, end = 12.dp)
+                                    ) {
+                                        FloatingActionButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    if (listState.layoutInfo.totalItemsCount > 0) {
+                                                        listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+                                                    }
                                                 }
-                                            }
-                                        },
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = Color.Black,
-                                    shape = CircleShape,
-                                    elevation = FloatingActionButtonDefaults.elevation(6.dp),
-                                    modifier = Modifier.size(44.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDownward,
-                                        contentDescription = "Bajar",
-                                        modifier = Modifier.size(28.dp)
-                                    )
+                                            },
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = Color.Black,
+                                            shape = CircleShape,
+                                            elevation = FloatingActionButtonDefaults.elevation(4.dp),
+                                            modifier = Modifier.size(40.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowDownward,
+                                                contentDescription = "Bajar",
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    }
+                }
+
+                if (state.config?.showParticles == true) {
+                    NvidiaParticlesBackground { mainContent() }
+                } else {
+                    mainContent()
                 }
             }
         }

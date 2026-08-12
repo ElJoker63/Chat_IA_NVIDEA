@@ -13,6 +13,7 @@ data class ApiConfig(
     val maxTokens: Int,
     val seed: Int,
     val stream: Boolean,
+    val showParticles: Boolean = false,
 ) {
     fun chatCompletionsUrl(): String {
         val base = baseUrl.trimEnd('/')

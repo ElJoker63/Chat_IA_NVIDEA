@@ -41,6 +41,7 @@ object ApiConfigParser {
             maxTokens = json.requiredInt("max_tokens"),
             seed = json.requiredInt("seed"),
             stream = json.requiredBoolean("stream"),
+            showParticles = json.optBoolean("show_particles", false),
         )
     }
 
@@ -55,6 +56,7 @@ object ApiConfigParser {
             .put("max_tokens", config.maxTokens)
             .put("seed", config.seed)
             .put("stream", config.stream)
+            .put("show_particles", config.showParticles)
             .toString(2)
 
     private fun JSONObject.requiredString(key: String): String {
