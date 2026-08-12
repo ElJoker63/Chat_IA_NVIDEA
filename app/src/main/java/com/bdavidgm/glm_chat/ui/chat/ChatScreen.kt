@@ -74,6 +74,8 @@ import com.bdavidgm.glm_chat.ui.chat.dialogs.ApiKeySetupDialog
 import com.bdavidgm.glm_chat.ui.chat.dialogs.ExitConfirmationDialog
 import com.bdavidgm.glm_chat.ui.chat.dialogs.HelpDialog
 import com.bdavidgm.glm_chat.ui.chat.views.FullScreenConfigView
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,7 +126,7 @@ fun ChatScreen(
     val context = LocalContext.current
 
     // Manejo del botón atrás
-    BackHandler(enabled = drawerState.isOpen || showConfigDialog || showHelpDialog || showExitDialog || true) {
+    BackHandler(enabled = drawerState.isOpen || showConfigDialog || showHelpDialog || showExitDialog) {
         when {
             showConfigDialog -> showConfigDialog = false
             showHelpDialog -> showHelpDialog = false
@@ -138,7 +140,7 @@ fun ChatScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            viewModel.onFileSelected(uri, "Archivo adjunto")
+            viewModel.onFileSelected(uri, context.getString(R.string.attachment_image))
         }
     }
 
@@ -206,14 +208,14 @@ fun ChatScreen(
                         title = {
                             Column {
                                 Text(
-                                    text = state.threads.find { it.id == state.currentThreadId }?.title ?: "Nuevo Chat",
+                                    text = state.threads.find { it.id == state.currentThreadId }?.title ?: stringResource(R.string.new_chat),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = state.config?.model ?: "NVIDIA AI",
+                                    text = state.config?.model ?: stringResource(R.string.assistant_label),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     maxLines = 1,
@@ -223,14 +225,14 @@ fun ChatScreen(
                         },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = "Menú")
+                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu_options))
                             }
                         },
                         actions = {
                             IconButton(onClick = { menuExpanded = true }) {
                                 Icon(
                                     imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Más opciones",
+                                    contentDescription = stringResource(R.string.menu_options),
                                 )
                             }
                             DropdownMenu(
@@ -238,7 +240,7 @@ fun ChatScreen(
                                 onDismissRequest = { menuExpanded = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Ayuda") },
+                                    text = { Text(stringResource(R.string.help_title)) },
                                     onClick = {
                                         menuExpanded = false
                                         showHelpDialog = true
@@ -264,7 +266,6 @@ fun ChatScreen(
                             onAttachFile = { pickFile.launch("*/*") },
                             selectedFileName = state.selectedFileName,
                             selectedFileUri = state.selectedFileUri,
-                            selectedFileBase64 = state.selectedFileBase64,
                             modifier = Modifier.windowInsetsPadding(
                                 WindowInsets.ime.union(WindowInsets.navigationBars),
                             ),
@@ -311,7 +312,7 @@ fun ChatScreen(
                                         items(allMessages, key = { it.id }) { message ->
                                             MessageBubble(
                                                 message = message,
-                                                modelName = state.config?.model ?: "AI",
+                                                modelName = state.config?.model ?: stringResource(R.string.assistant_label),
                                                 onEdit = { viewModel.editMessage(message.id, it) }
                                             )
                                         }
@@ -346,7 +347,7 @@ fun ChatScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.ArrowDownward,
-                                                contentDescription = "Bajar",
+                                                contentDescription = stringResource(R.string.scroll_to_bottom),
                                                 modifier = Modifier.size(24.dp)
                                             )
                                         }

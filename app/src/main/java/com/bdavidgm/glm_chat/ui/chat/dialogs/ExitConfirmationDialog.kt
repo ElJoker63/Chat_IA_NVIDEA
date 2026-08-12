@@ -6,6 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,7 +22,7 @@ fun ExitConfirmationDialog(
         containerColor = Color(0xFF121212),
         title = {
             Text(
-                text = "¿Salir de la aplicación?",
+                text = stringResource(R.string.exit_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -28,7 +30,7 @@ fun ExitConfirmationDialog(
         },
         text = {
             Text(
-                text = "Se cerrará la sesión actual de chat. ¿Estás seguro de que quieres salir?",
+                text = stringResource(R.string.exit_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray
             )
@@ -42,7 +44,7 @@ fun ExitConfirmationDialog(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Salir", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.exit_confirm), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -52,7 +54,7 @@ fun ExitConfirmationDialog(
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
             ) {
-                Text("Cancelar")
+                Text(stringResource(R.string.cancel))
             }
         },
         shape = RoundedCornerShape(16.dp)

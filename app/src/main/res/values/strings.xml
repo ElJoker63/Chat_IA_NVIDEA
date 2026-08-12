@@ -1,3 +1,72 @@
 <resources>
-    <string name="app_name">NVIDIA LLM API Chat</string>
+    <string name="app_name">NVIDIA LLM Chat</string>
+
+    <!-- Navigation & Sidebar -->
+    <string name="new_chat">Nuevo Chat</string>
+    <string name="history">Historial</string>
+    <string name="search_conversations">Buscar conversaciones</string>
+    <string name="settings">Ajustes</string>
+    <string name="today">Hoy</string>
+    <string name="yesterday">Ayer</string>
+    <string name="older">Anteriores</string>
+    <string name="delete">Eliminar</string>
+    <string name="menu_options">Más opciones</string>
+
+    <!-- Chat -->
+    <string name="write_message">Escribe un mensaje…</string>
+    <string name="attach_file">Adjuntar</string>
+    <string name="send">Enviar</string>
+    <string name="scroll_to_bottom">Bajar</string>
+    <string name="assistant_label">AI</string>
+    <string name="copy">Copiar</string>
+    <string name="edit">Editar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="attachment_image">Imagen adjunta</string>
+    <string name="describe_image_default">Describe esta imagen</string>
+
+    <!-- Settings -->
+    <string name="config_title">Configuración</string>
+    <string name="save">Guardar</string>
+    <string name="delete_config">Eliminar</string>
+    <string name="api_key_label">API Key</string>
+    <string name="model_label">Modelo</string>
+    <string name="base_url_label">Base URL</string>
+    <string name="temp_label">Temp</string>
+    <string name="tokens_label">Tokens</string>
+    <string name="enable_streaming">Habilitar Streaming</string>
+    <string name="particle_background">Fondo de Partículas</string>
+    <string name="neural_network_effect">Efecto red neuronal (Experimental)</string>
+    <string name="search_model_placeholder">Buscar modelo...</string>
+    <string name="back">Atrás</string>
+
+    <!-- Dialogs -->
+    <string name="help_title">Ayuda y Guía de Uso</string>
+    <string name="help_subtitle">Potenciado por NVIDIA NIM API</string>
+    <string name="help_description">Esta aplicación ofrece una interfaz fluida para interactuar con los modelos más avanzados a través de NVIDIA NIM.</string>
+    <string name="help_features_title">Características Principales:</string>
+    <string name="help_feature_multimodal">• Soporte Multimodal: Envía imágenes y documentos PDF para análisis directo.</string>
+    <string name="help_feature_history">• Historial Inteligente: Accede a tus conversaciones previas desde la barra lateral.</string>
+    <string name="help_feature_config">• Configuración Flexible: Ajusta parámetros como temperatura y tokens máximos para cada chat.</string>
+    <string name="help_navigation_title">Navegación:</string>
+    <string name="help_navigation_desc">Puedes gestionar tus ajustes y API Key rápidamente desde la opción \'Ajustes\' en la parte inferior de la barra lateral.</string>
+    <string name="close">Cerrar</string>
+
+    <string name="exit_title">¿Salir de la aplicación?</string>
+    <string name="exit_description">Se cerrará la sesión actual de chat. ¿Estás seguro de que quieres salir?</string>
+    <string name="exit_confirm">Salir</string>
+
+    <string name="setup_title">Configuración Inicial</string>
+    <string name="setup_description">Introduce tu API Key de NVIDIA para comenzar. La app se configurará automáticamente con valores por defecto.</string>
+    <string name="setup_api_key_label">NVIDIA API Key</string>
+    <string name="setup_start">Empezar</string>
+
+    <!-- Messages & Errors -->
+    <string name="error_no_config">Primero configura la API</string>
+    <string name="info_api_configured">API Key configurada correctamente</string>
+    <string name="info_config_updated">Configuración actualizada</string>
+    <string name="info_config_deleted">Configuración eliminada.</string>
+    <string name="error_load_models">No se pudieron cargar los modelos: %1$s</string>
+    <string name="error_file_process">No se pudo procesar el archivo: %1$s</string>
+    <string name="error_pdf_preview">No se pudo previsualizar el PDF: %1$s</string>
+    <string name="error_response_failed">No se pudo completar la respuesta</string>
 </resources>

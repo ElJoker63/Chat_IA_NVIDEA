@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.bdavidgm.glm_chat.R
 import com.bdavidgm.glm_chat.data.ApiConfig
 import com.bdavidgm.glm_chat.data.ApiConfigStore
 import com.bdavidgm.glm_chat.data.ChatMessage
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 
@@ -127,7 +127,8 @@ class ChatViewModel(
                     _uiState.update { it.copy(selectedFileUri = uri, selectedFileName = name, selectedFileType = type) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "No se pudo procesar el archivo: ${e.message}") }
+                val application = getApplication<Application>()
+                _uiState.update { it.copy(error = application.getString(R.string.error_file_process, e.message)) }
             }
         }
     }
@@ -184,7 +185,8 @@ class ChatViewModel(
                 renderer.close()
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(error = "No se pudo previsualizar el PDF: ${e.message}") }
+            val application = getApplication<Application>()
+            _uiState.update { it.copy(error = application.getString(R.string.error_pdf_preview, e.message)) }
         }
     }
 
@@ -216,33 +218,25 @@ class ChatViewModel(
         _uiState.update { it.copy(info = null) }
     }
 
-    fun clearChat() {
-        streamJob?.cancel()
-        _uiState.update {
-            it.copy(
-                messages = emptyList(),
-                input = "",
-                isGenerating = false,
-                streamingMessage = null
-            )
-        }
-    }
 
     fun clearConfig() {
         streamJob?.cancel()
         configStore.clear()
-        _uiState.value = ChatUiState(info = "Configuración eliminada.")
+        val application = getApplication<Application>()
+        _uiState.value = ChatUiState(info = application.getString(R.string.info_config_deleted))
     }
 
     fun setupDefaultConfig(apiKey: String) {
         val config = DEFAULT_API_CONFIG.copy(apiKey = apiKey.trim())
         configStore.save(config)
-        _uiState.update { it.copy(config = config, info = "API Key configurada correctamente") }
+        val application = getApplication<Application>()
+        _uiState.update { it.copy(config = config, info = application.getString(R.string.info_api_configured)) }
     }
 
     fun updateConfig(config: ApiConfig) {
         configStore.save(config)
-        _uiState.update { it.copy(config = config, info = "Configuración actualizada") }
+        val application = getApplication<Application>()
+        _uiState.update { it.copy(config = config, info = application.getString(R.string.info_config_updated)) }
     }
 
     fun loadAvailableModels() {
@@ -255,10 +249,11 @@ class ChatViewModel(
                 val models = chatClient.fetchModels(config)
                 _uiState.update { it.copy(availableModels = models, isFetchingModels = false) }
             } catch (e: Exception) {
+                val application = getApplication<Application>()
                 _uiState.update {
                     it.copy(
                         isFetchingModels = false,
-                        error = "No se pudieron cargar los modelos: ${e.message}",
+                        error = application.getString(R.string.error_load_models, e.message),
                     )
                 }
             }
@@ -270,8 +265,9 @@ class ChatViewModel(
         val config = _uiState.value.config
         if (text.isEmpty() || _uiState.value.isGenerating) return
         if (config == null) {
+            val application = getApplication<Application>()
             _uiState.update {
-                it.copy(error = "Primero configura la API")
+                it.copy(error = application.getString(R.string.error_no_config))
             }
             return
         }
@@ -379,11 +375,12 @@ class ChatViewModel(
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
+                    val application = getApplication<Application>()
                     _uiState.update { 
                         it.copy(
                             isGenerating = false, 
                             streamingMessage = null,
-                            error = e.message ?: "No se pudo completar la respuesta"
+                            error = e.message ?: application.getString(R.string.error_response_failed)
                         ) 
                     }
                 }

@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import coil.compose.AsyncImage
 
 @Composable
@@ -29,8 +31,7 @@ fun ComposerBar(
     onSend: () -> Unit,
     onAttachFile: () -> Unit,
     selectedFileName: String?,
-    selectedFileUri: Uri?,
-    selectedFileBase64: String?,
+    selectedFileUri: android.net.Uri?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -80,10 +81,10 @@ fun ComposerBar(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Escribe un mensaje…", color = Color.Gray) },
+                placeholder = { Text(stringResource(R.string.write_message), color = Color.Gray) },
                 leadingIcon = {
                     IconButton(onClick = onAttachFile) {
-                        Icon(Icons.Default.AttachFile, contentDescription = "Adjuntar", tint = Color.Gray)
+                        Icon(Icons.Default.AttachFile, contentDescription = stringResource(R.string.attach_file), tint = Color.Gray)
                     }
                 },
                 enabled = !isGenerating,
@@ -121,7 +122,7 @@ fun ComposerBar(
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Enviar",
+                        contentDescription = stringResource(R.string.send),
                         tint = if (canSend) Color.Black else Color.Gray,
                         modifier = Modifier.size(20.dp)
                     )

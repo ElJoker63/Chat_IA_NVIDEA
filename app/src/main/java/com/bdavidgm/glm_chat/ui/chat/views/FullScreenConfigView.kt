@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import com.bdavidgm.glm_chat.data.ApiConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,10 +51,10 @@ fun FullScreenConfigView(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configuración") },
+                title = { Text(stringResource(R.string.config_title)) },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {},
@@ -73,7 +74,7 @@ fun FullScreenConfigView(
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key") },
+                label = { Text(stringResource(R.string.api_key_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.DarkGray)
             )
@@ -82,7 +83,7 @@ fun FullScreenConfigView(
                 OutlinedTextField(
                     value = model,
                     onValueChange = { },
-                    label = { Text("Modelo") },
+                    label = { Text(stringResource(R.string.model_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     readOnly = true,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.DarkGray),
@@ -111,7 +112,7 @@ fun FullScreenConfigView(
                     OutlinedTextField(
                         value = modelFilter,
                         onValueChange = { modelFilter = it },
-                        placeholder = { Text("Buscar modelo...") },
+                        placeholder = { Text(stringResource(R.string.search_model_placeholder)) },
                         modifier = Modifier.padding(8.dp).fillMaxWidth(),
                         singleLine = true,
                     )
@@ -130,7 +131,7 @@ fun FullScreenConfigView(
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
-                label = { Text("Base URL") },
+                label = { Text(stringResource(R.string.base_url_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.DarkGray)
             )
@@ -139,14 +140,14 @@ fun FullScreenConfigView(
                 OutlinedTextField(
                     value = temperature,
                     onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) temperature = it },
-                    label = { Text("Temp") },
+                    label = { Text(stringResource(R.string.temp_label)) },
                     modifier = Modifier.weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.DarkGray)
                 )
                 OutlinedTextField(
                     value = maxTokens,
                     onValueChange = { if (it.isEmpty() || it.toIntOrNull() != null) maxTokens = it },
-                    label = { Text("Tokens") },
+                    label = { Text(stringResource(R.string.tokens_label)) },
                     modifier = Modifier.weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.DarkGray)
                 )
@@ -157,7 +158,7 @@ fun FullScreenConfigView(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Habilitar Streaming", color = Color.White)
+                Text(stringResource(R.string.enable_streaming), color = Color.White)
                 Switch(checked = stream, onCheckedChange = { stream = it })
             }
 
@@ -167,8 +168,8 @@ fun FullScreenConfigView(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Fondo de Partículas", color = Color.White)
-                    Text("Efecto red neuronal (Experimental)", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(stringResource(R.string.particle_background), color = Color.White)
+                    Text(stringResource(R.string.neural_network_effect), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
                 Switch(checked = showParticles, onCheckedChange = { showParticles = it })
             }
@@ -204,7 +205,7 @@ fun FullScreenConfigView(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Guardar", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.save), fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
@@ -217,7 +218,7 @@ fun FullScreenConfigView(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Eliminar", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold)
                 }
             }
         }

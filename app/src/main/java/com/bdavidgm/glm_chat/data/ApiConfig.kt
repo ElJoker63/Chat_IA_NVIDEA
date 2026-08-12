@@ -1,8 +1,11 @@
 package com.bdavidgm.glm_chat.data
 
+import androidx.annotation.Keep
+
 /**
  * Configuración de la API cargada desde un JSON del usuario (sin valores en el código fuente).
  */
+@Keep
 data class ApiConfig(
     val baseUrl: String,
     val chatPath: String,

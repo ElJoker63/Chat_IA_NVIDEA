@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -13,18 +15,18 @@ fun ApiKeySetupDialog(
     var apiKey by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = { /* No se puede descartar */ },
-        title = { Text("Configuración Inicial") },
+        title = { Text(stringResource(R.string.setup_title)) },
         text = {
             Column {
                 Text(
-                    "Introduce tu API Key de NVIDIA para comenzar. La app se configurará automáticamente con valores por defecto.",
+                    stringResource(R.string.setup_description),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
-                    label = { Text("NVIDIA API Key") },
+                    label = { Text(stringResource(R.string.setup_api_key_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -35,7 +37,7 @@ fun ApiKeySetupDialog(
                 onClick = { onConfirm(apiKey) },
                 enabled = apiKey.isNotBlank(),
             ) {
-                Text("Empezar")
+                Text(stringResource(R.string.setup_start))
             }
         },
     )

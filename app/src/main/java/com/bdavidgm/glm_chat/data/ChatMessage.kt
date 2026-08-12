@@ -1,11 +1,14 @@
 package com.bdavidgm.glm_chat.data
 
+import androidx.annotation.Keep
+
 enum class MessageRole(val apiValue: String) {
     USER("user"),
     ASSISTANT("assistant"),
     SYSTEM("system"),
 }
 
+@Keep
 data class ChatMessage(
     val id: String,
     val role: MessageRole,

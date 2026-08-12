@@ -55,8 +55,7 @@ fun NvidiaParticlesBackground(
 
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Ignoramos el aviso de que frameTime no se usa; su lectura es la que dispara la recomposición del Canvas
-            val _ignore = frameTime 
+            if (frameTime == -1L) return@Canvas
             
             val width = size.width
             val height = size.height

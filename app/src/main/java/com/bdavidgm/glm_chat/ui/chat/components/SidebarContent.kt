@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import com.bdavidgm.glm_chat.data.local.ChatThread
 
 @Composable
@@ -41,9 +43,9 @@ fun SidebarContent(
     val groupedThreads = remember(filteredThreads) {
         filteredThreads.groupBy { thread ->
             when {
-                DateUtils.isToday(thread.lastMessageAt) -> "Hoy"
-                DateUtils.isToday(thread.lastMessageAt + DateUtils.DAY_IN_MILLIS) -> "Ayer"
-                else -> "Anteriores"
+                DateUtils.isToday(thread.lastMessageAt) -> "today"
+                DateUtils.isToday(thread.lastMessageAt + DateUtils.DAY_IN_MILLIS) -> "yesterday"
+                else -> "older"
             }
         }
     }
@@ -74,7 +76,7 @@ fun SidebarContent(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    "NVIDIA LLM Chat",
+                    stringResource(R.string.app_name),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White
@@ -93,7 +95,7 @@ fun SidebarContent(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Nuevo Chat", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.new_chat), fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -101,7 +103,7 @@ fun SidebarContent(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                placeholder = { Text("Buscar conversaciones", color = Color.Gray) },
+                placeholder = { Text(stringResource(R.string.search_conversations), color = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
@@ -119,8 +121,13 @@ fun SidebarContent(
             Spacer(modifier = Modifier.height(24.dp))
             
             LazyColumn(modifier = Modifier.weight(1f)) {
-                groupedThreads.forEach { (header, threadList) ->
+                groupedThreads.forEach { (headerKey, threadList) ->
                     item {
+                        val header = when(headerKey) {
+                            "today" -> stringResource(R.string.today)
+                            "yesterday" -> stringResource(R.string.yesterday)
+                            else -> stringResource(R.string.older)
+                        }
                         Text(
                             text = header.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
@@ -162,7 +169,7 @@ fun SidebarContent(
                                 ) {
                                     Icon(
                                         Icons.Default.Delete,
-                                        contentDescription = "Eliminar",
+                                        contentDescription = stringResource(R.string.delete),
                                         tint = Color.Red.copy(alpha = 0.7f),
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -186,7 +193,7 @@ fun SidebarContent(
             ) {
                 Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(16.dp))
-                Text("Ajustes", style = MaterialTheme.typography.bodyLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.settings), style = MaterialTheme.typography.bodyLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
     }

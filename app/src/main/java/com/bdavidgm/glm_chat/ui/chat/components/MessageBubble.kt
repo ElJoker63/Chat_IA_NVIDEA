@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.bdavidgm.glm_chat.R
 import com.bdavidgm.glm_chat.data.ChatMessage
 import com.bdavidgm.glm_chat.data.MessageRole
 import com.mikepenz.markdown.m3.Markdown
@@ -90,7 +92,7 @@ fun MessageBubble(
                     onClick = { isEditing = !isEditing },
                     modifier = Modifier.size(32.dp).padding(end = 4.dp)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), tint = Color.Gray, modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -111,7 +113,7 @@ fun MessageBubble(
                     if (imageBytes != null) {
                         AsyncImage(
                             model = imageBytes,
-                            contentDescription = "Imagen adjunta",
+                            contentDescription = stringResource(R.string.attachment_image),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -136,11 +138,11 @@ fun MessageBubble(
                                 )
                             )
                             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                TextButton(onClick = { isEditing = false }) { Text("Cancelar") }
+                                TextButton(onClick = { isEditing = false }) { Text(stringResource(R.string.cancel)) }
                                 TextButton(onClick = { 
                                     onEdit(editValue)
                                     isEditing = false 
-                                }) { Text("Enviar") }
+                                }) { Text(stringResource(R.string.send)) }
                             }
                         }
                     } else {
@@ -187,7 +189,7 @@ fun MessageBubble(
                     onClick = { clipboardManager.setText(AnnotatedString(message.content)) },
                     modifier = Modifier.size(32.dp).padding(start = 4.dp)
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy), tint = Color.Gray, modifier = Modifier.size(16.dp))
                 }
             }
         }
