@@ -113,47 +113,78 @@ class ChatViewModel(
                 if (type?.startsWith("image/") == true) {
                     val inputStream = contentResolver.openInputStream(uri)
                     val originalBitmap = BitmapFactory.decodeStream(inputStream)
-                    
-                    // Reescalar si es muy grande (máximo 1024px en el lado más largo)
-                    val maxDimension = 1024
-                    val width = originalBitmap.width
-                    val height = originalBitmap.height
-                    val (newWidth, newHeight) = if (width > height) {
-                        if (width > maxDimension) {
-                            maxDimension to (height * maxDimension / width)
-                        } else width to height
-                    } else {
-                        if (height > maxDimension) {
-                            (width * maxDimension / height) to maxDimension
-                        } else width to height
-                    }
-                    
-                    val bitmap = if (newWidth != width || newHeight != height) {
-                        Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
-                    } else {
-                        originalBitmap
-                    }
-
-                    val outputStream = ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-                    val bytes = outputStream.toByteArray()
-                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                    
-                    _uiState.update { 
-                        it.copy(
-                            selectedFileUri = uri, 
-                            selectedFileName = name,
-                            selectedFileBase64 = base64,
-                            selectedFileType = "image/jpeg" // Normalizamos a jpeg tras comprimir
-                        ) 
+                    originalBitmap?.let { processBitmap(it, uri, name) }
+                } else if (type == "application/pdf") {
+                    processPdf(uri, name)
+                } else if (type?.startsWith("text/") == true) {
+                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    text?.let {
+                        _uiState.update { state ->
+                            state.copy(input = state.input + "\n" + it)
+                        }
                     }
                 } else {
-                    // Por ahora solo imágenes, pero preparado para texto plano
                     _uiState.update { it.copy(selectedFileUri = uri, selectedFileName = name, selectedFileType = type) }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "No se pudo procesar el archivo: ${e.message}") }
             }
+        }
+    }
+
+    private fun processBitmap(originalBitmap: Bitmap, uri: Uri, name: String?) {
+        // Reescalar si es muy grande (máximo 1024px en el lado más largo)
+        val maxDimension = 1024
+        val width = originalBitmap.width
+        val height = originalBitmap.height
+        val (newWidth, newHeight) = if (width > height) {
+            if (width > maxDimension) {
+                maxDimension to (height * maxDimension / width)
+            } else width to height
+        } else {
+            if (height > maxDimension) {
+                (width * maxDimension / height) to maxDimension
+            } else width to height
+        }
+
+        val bitmap = if (newWidth != width || newHeight != height) {
+            Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+        } else {
+            originalBitmap
+        }
+
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+        val bytes = outputStream.toByteArray()
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+
+        _uiState.update {
+            it.copy(
+                selectedFileUri = uri,
+                selectedFileName = name,
+                selectedFileBase64 = base64,
+                selectedFileType = "image/jpeg"
+            )
+        }
+    }
+
+    private fun processPdf(uri: Uri, name: String?) {
+        try {
+            val contentResolver = getApplication<Application>().contentResolver
+            val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
+            parcelFileDescriptor?.use { pfd ->
+                val renderer = android.graphics.pdf.PdfRenderer(pfd)
+                if (renderer.pageCount > 0) {
+                    val page = renderer.openPage(0)
+                    val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                    page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    page.close()
+                    processBitmap(bitmap, uri, name)
+                }
+                renderer.close()
+            }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(error = "No se pudo previsualizar el PDF: ${e.message}") }
         }
     }
 

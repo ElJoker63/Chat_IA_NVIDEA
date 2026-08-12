@@ -287,15 +287,6 @@ fun ChatScreen(
                                     },
                                     enabled = state.config != null && !state.isGenerating && !state.isImporting,
                                 )
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text("Limpiar chat") },
-                                    onClick = {
-                                        menuExpanded = false
-                                        viewModel.clearChat()
-                                    },
-                                    enabled = state.messages.isNotEmpty() && !state.isGenerating,
-                                )
                                 DropdownMenuItem(
                                     text = { Text("Ayuda") },
                                     onClick = {
@@ -320,9 +311,10 @@ fun ChatScreen(
                             isGenerating = state.isGenerating,
                             onValueChange = viewModel::onInputChange,
                             onSend = viewModel::sendMessage,
-                            onAttachFile = { pickFile.launch("image/*") },
+                            onAttachFile = { pickFile.launch("*/*") },
                             selectedFileName = state.selectedFileName,
                             selectedFileUri = state.selectedFileUri,
+                            selectedFileBase64 = state.selectedFileBase64,
                             modifier = Modifier.windowInsetsPadding(
                                 WindowInsets.ime.union(WindowInsets.navigationBars),
                             ),
@@ -684,6 +676,30 @@ private fun MessageBubble(
     val clipboardManager = LocalClipboardManager.current
     var isEditing by remember { mutableStateOf(false) }
     var editValue by remember { mutableStateOf(message.content) }
+    var showFullImage by remember { mutableStateOf(false) }
+    
+    // Decodificamos el base64 a bytes para que Coil lo maneje mejor
+    val imageBytes = remember(message.imageBase64) {
+        message.imageBase64?.let { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }
+    }
+
+    if (showFullImage && imageBytes != null) {
+        AlertDialog(
+            onDismissRequest = { showFullImage = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+            text = {
+                Box(modifier = Modifier.fillMaxSize().clickable { showFullImage = false }, contentAlignment = Alignment.Center) {
+                    AsyncImage(
+                        model = imageBytes,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    )
+                }
+            },
+            confirmButton = {},
+            containerColor = Color.Black.copy(alpha = 0.9f)
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -729,14 +745,16 @@ private fun MessageBubble(
                 modifier = Modifier.widthIn(max = 280.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    if (message.imageBase64 != null && message.imageType != null) {
+                    if (imageBytes != null) {
                         AsyncImage(
-                            model = "data:${message.imageType};base64,${message.imageBase64}",
+                            model = imageBytes,
                             contentDescription = "Imagen adjunta",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
+                                .height(180.dp)
                                 .clip(RoundedCornerShape(8.dp))
+                                .clickable { showFullImage = true }
                                 .padding(bottom = 8.dp)
                         )
                     }
@@ -822,6 +840,7 @@ private fun ComposerBar(
     onAttachFile: () -> Unit,
     selectedFileName: String?,
     selectedFileUri: android.net.Uri?,
+    selectedFileBase64: String?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -836,11 +855,14 @@ private fun ComposerBar(
                     .padding(bottom = 8.dp)
                     .size(80.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color.DarkGray)
+                    .background(Color.DarkGray),
+                contentAlignment = Alignment.Center
             ) {
+                // Para la vista previa antes de enviar, usamos la URI local que es inmediata
                 AsyncImage(
                     model = selectedFileUri,
                     contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             }

@@ -26,11 +26,15 @@ class NvidiaChatClient(
     private val client: OkHttpClient = defaultClient(),
 ) {
     fun streamChat(config: ApiConfig, messages: List<ChatMessage>): Flow<String> = flow {
-        val body = buildRequestBody(config, messages)
+        val hasImage = messages.any { it.imageBase64 != null }
+        // Si hay imagen, forzamos stream a false si el modelo es propenso a fallar con streaming multimodal
+        val useStream = if (hasImage) false else config.stream
+        
+        val body = buildRequestBody(config, messages, useStream)
         val request = Request.Builder()
             .url(config.chatCompletionsUrl())
             .addHeader("Authorization", "Bearer ${config.apiKey}")
-            .addHeader("Accept", "text/event-stream")
+            .addHeader("Accept", if (useStream) "text/event-stream" else "application/json")
             .addHeader("Content-Type", "application/json")
             .post(body.toRequestBody(JSON_MEDIA_TYPE))
             .build()
@@ -49,7 +53,7 @@ class NvidiaChatClient(
                 val responseBody = resp.body
                     ?: throw IllegalStateException("Respuesta vacía del servidor")
 
-                if (!config.stream) {
+                if (!useStream) {
                     val full = parseFullContent(responseBody.string())
                         ?: throw IllegalStateException("Respuesta sin contenido")
                     emit(full)
@@ -99,7 +103,7 @@ class NvidiaChatClient(
         }
     }
 
-    private fun buildRequestBody(config: ApiConfig, messages: List<ChatMessage>): String {
+    private fun buildRequestBody(config: ApiConfig, messages: List<ChatMessage>, useStream: Boolean): String {
         val messagesArray = JSONArray()
         messages.forEach { message ->
             val messageJson = JSONObject().put("role", message.role.apiValue)
@@ -135,7 +139,7 @@ class NvidiaChatClient(
             .put("top_p", config.topP)
             .put("max_tokens", config.maxTokens)
             .put("seed", config.seed)
-            .put("stream", config.stream)
+            .put("stream", useStream)
             .toString()
     }
 
